@@ -113,7 +113,7 @@ def makeSankey(info):
     node = info['node']
     link = info['link']
     
-    n_nodes = len(node['label'])
+    n_nodes = max([len(node[i]) for i in ['label','x','y','color','alpha','width'] if i in node and type(node[i]) in {list, tuple}])
     n_links = len(link['source'])
 
     for td in [('alpha',1.0),('height',None)]:
@@ -127,7 +127,7 @@ def makeSankey(info):
         if td[0] not in link:
             link[td[0]] = td[1]
 
-    for thing in ['value', 'label', 'alpha']:
+    for thing in ['value', 'label', 'alpha', 'color']:
         link[thing] = makelistifnot(link[thing], n_links)
     
     
