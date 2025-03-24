@@ -48,7 +48,7 @@ def makelink(ax, p0, p1, height, facecolor, alpha=1.0, ec='white', lw=0):
     patch = patches.PathPatch(path, facecolor=facecolor, lw=lw, ec=ec, alpha=alpha)
     ax.add_patch(patch)
 
-def makebox(ax, p0, s0, facecolor, alpha=1.0, ec='white', lw=0):
+def makebox(ax, p0, s0, facecolor, alpha=1.0, ec='white', lw=0, label=None):
     x0,y0 = p0
     width,height = s0
     x1 = x0 + width
@@ -73,9 +73,17 @@ def makebox(ax, p0, s0, facecolor, alpha=1.0, ec='white', lw=0):
 
     patch = patches.PathPatch(path, facecolor=facecolor, lw=lw, ec=ec, alpha=alpha)
     ax.add_patch(patch)
+    
+    if label:
+        ax.annotate(
+            label,
+            xy=(x0 + width/2, y0+height/2),
+            ha='center',
+            va='center',
+        )
 
 class Box():
-    def __init__(self, x=0, y=0, rank=0, width=0.1, height=0.1, color='blue', alpha=1.0):
+    def __init__(self, x=0, y=0, rank=0, width=0.1, height=0.1, color='blue', alpha=1.0, label=None):
         self.input_x = x
         self.input_y = y
         self.input_width = width
@@ -83,6 +91,7 @@ class Box():
         self.rank = rank
         self.color = color
         self.alpha = alpha
+        self.label = label
         self.inlink_total = 0
         self.outlink_total = 0
         self.bot_out = 0
@@ -130,7 +139,6 @@ def makeSankey(info):
     for thing in ['value', 'label', 'alpha', 'color']:
         link[thing] = makelistifnot(link[thing], n_links)
     
-    
     boxes = ['' for i in range(n_nodes)]
     for i in range(n_nodes):
         boxes[i] = Box(x = node['x'][i],
@@ -139,7 +147,8 @@ def makeSankey(info):
                        height = node['height'][i],
                        rank = node['rank'][i],
                        color = node['color'][i],
-                       alpha = node['alpha'][i]
+                       alpha = node['alpha'][i],
+                       label = node['label'][i]
                    )
     
     links = ['' for i in range(n_links)]
@@ -172,8 +181,9 @@ def makeSankey(info):
         ranktotals[box.rank] += max(box.outlink_total, box.inlink_total)
     
     linkscale = max(ranktotals)
-    for link in links:
-        link.height = link.in_value / linkscale
+    if 'scale' not in node or node['scale'] != False:
+        for link in links:
+            link.height = link.in_value / linkscale
     
     miny = 1e100
     for box in boxes:
@@ -182,11 +192,15 @@ def makeSankey(info):
     
     yscale = max([(box.input_y-miny)/(1-box.height) for box in boxes])
     for box in boxes:
-        box.y0 = (box.input_y - miny) / yscale
+        if 'yscale' not in node or node['yscale'] != False:
+            box.y0 = (box.input_y - miny) / yscale
+        else:
+            box.y0 = box.input_y - miny
         box.y1 = box.y0 + box.height
         box.top_in = box.height
     
     """ build links """
+    """ This expects the list to go from top down on the out side """
     for link in links:
         frombox = boxes[link.source]
         tobox = boxes[link.target]
@@ -206,9 +220,8 @@ def makeSankey(info):
 def doSankey(ax, sankey_info):
     boxes, links = makeSankey(sankey_info)
     
-
     for box in boxes:
-        makebox(ax, (box.x0,box.y0), (box.x1-box.x0,box.y1-box.y0), box.color, alpha=box.alpha)
+        makebox(ax, (box.x0,box.y0), (box.x1-box.x0,box.y1-box.y0), box.color, alpha=box.alpha, label=box.label)
     
     for link in links:
         makelink(ax, (link.x0, link.y0), (link.x1, link.y1), link.height, link.color, link.alpha)
